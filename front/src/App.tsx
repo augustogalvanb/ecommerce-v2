@@ -6,6 +6,7 @@ import { Products } from './pages/Products';
 import { ProductDetail } from './pages/ProductDetail';
 import { Cart } from './pages/Cart';
 import { Checkout } from './pages/Checkout';
+import { Payment } from './pages/Payment'; // NUEVO
 import { OrderConfirmation } from './pages/OrderConfirmation';
 import { TrackOrder } from './pages/TrackOrder';
 import { Contact } from './pages/Contact';
@@ -27,6 +28,7 @@ function App() {
           <Route path="/product/:slug" element={<ProductDetail />} />
           <Route path="/cart" element={<Cart />} />
           <Route path="/checkout" element={<Checkout />} />
+          <Route path="/payment/:orderId" element={<Payment />} /> {/* NUEVO */}
           <Route path="/order-confirmation/:orderNumber" element={<OrderConfirmation />} />
           <Route path="/track-order" element={<TrackOrder />} />
           <Route path="/contact" element={<Contact />} />

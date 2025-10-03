@@ -9,13 +9,16 @@ export const api = axios.create({
   },
 });
 
-// Interceptor para agregar el token JWT
+// Interceptor para agregar el token JWT SOLO si existe
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('admin_token');
+    
+    // Solo agregar token si existe (para rutas de admin)
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+    
     return config;
   },
   (error) => {
@@ -27,9 +30,24 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
+    // Solo redirigir a login si:
+    // 1. Es error 401
+    // 2. Y estamos intentando acceder a una ruta de admin
+    // 3. Y hay un token (significa que está expirado)
     if (error.response?.status === 401) {
-      localStorage.removeItem('admin_token');
-      window.location.href = '/admin/login';
+      const token = localStorage.getItem('admin_token');
+      const isAdminRoute = error.config?.url?.includes('/admin') || 
+                          window.location.pathname.startsWith('/admin');
+      
+      // Solo redirigir si es una ruta de admin o había un token
+      if (token || isAdminRoute) {
+        localStorage.removeItem('admin_token');
+        
+        // Solo redirigir si NO estamos ya en la página de login
+        if (!window.location.pathname.includes('/admin/login')) {
+          window.location.href = '/admin/login';
+        }
+      }
     }
     return Promise.reject(error);
   }

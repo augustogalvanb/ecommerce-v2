@@ -57,11 +57,26 @@ model Order {
   customerPhone String
   totalAmount   Decimal     @db.Decimal(10, 2)
   status        OrderStatus @default(PENDING)
+  
+  // Nuevos campos para Mercado Pago
+  paymentStatus PaymentStatus @default(PENDING)
+  paymentId     String?      // ID de pago de Mercado Pago
+  paymentMethod String?      // Método de pago (credit_card, debit_card)
+  
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
   orderItems    OrderItem[]
 
   @@map("orders")
+}
+
+enum PaymentStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  IN_PROCESS
+  CANCELLED
+  REFUNDED
 }
 
 model OrderItem {

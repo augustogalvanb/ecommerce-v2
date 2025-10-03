@@ -5,6 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useCartStore } from '../stores/cartStore';
 import { orderService } from '../services/orderService';
+import { ArrowRight } from 'lucide-react';
 
 const checkoutSchema = z.object({
   customerName: z.string().min(3, 'El nombre debe tener al menos 3 caracteres'),
@@ -18,7 +19,8 @@ export const Checkout = () => {
   const navigate = useNavigate();
   const { items, getTotal, clearCart } = useCartStore();
   const [loading, setLoading] = useState(false);
-  const [isProcessing, setIsProcessing] = useState(false); // Nuevo flag
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [orderId, setOrderId] = useState<string | null>(null);
 
   const {
     register,
@@ -28,7 +30,6 @@ export const Checkout = () => {
     resolver: zodResolver(checkoutSchema),
   });
 
-  // Solo redirigir si el carrito está vacío Y NO estamos procesando
   useEffect(() => {
     if (items.length === 0 && !isProcessing) {
       navigate('/cart');
@@ -37,7 +38,7 @@ export const Checkout = () => {
 
   const onSubmit = async (data: CheckoutForm) => {
     setLoading(true);
-    setIsProcessing(true); // Activar flag antes de limpiar carrito
+    setIsProcessing(true);
     
     try {
       const orderData = {
@@ -49,26 +50,36 @@ export const Checkout = () => {
       };
 
       const order = await orderService.create(orderData);
-      clearCart(); // Ahora sí limpiamos el carrito
+      setOrderId(order.id);
+      clearCart();
       
-      // Navegar directamente sin esperar
-      navigate(`/order-confirmation/${order.orderNumber}`, { replace: true });
+      // Navegar a la página de pago
+      navigate(`/payment/${order.id}`, { 
+        state: { 
+          orderNumber: order.orderNumber,
+          customerEmail: data.customerEmail,
+          customerName: data.customerName,
+          totalAmount: order.totalAmount,
+        } 
+      });
     } catch (error: any) {
-      setIsProcessing(false); // Desactivar flag si hay error
+      setIsProcessing(false);
       alert(error.response?.data?.message || 'Error al crear el pedido');
     } finally {
       setLoading(false);
     }
   };
 
-  // No mostrar nada si el carrito está vacío y no estamos procesando
   if (items.length === 0 && !isProcessing) {
     return null;
   }
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <h1 className="text-4xl font-bold text-gray-900 mb-8">Finalizar Compra</h1>
+      <div className="mb-8">
+        <h1 className="text-4xl font-bold text-gray-900 mb-2">Finalizar Compra</h1>
+        <p className="text-gray-600">Completa tus datos para continuar con el pago</p>
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Form */}
@@ -132,18 +143,19 @@ export const Checkout = () => {
               )}
             </div>
 
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-              <p className="text-sm text-yellow-800">
-                <strong>Importante:</strong> Guarda el número de pedido que recibirás para rastrear tu compra.
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <p className="text-sm text-blue-800">
+                <strong>Siguiente paso:</strong> Después de confirmar tus datos, podrás ingresar la información de tu tarjeta de forma segura.
               </p>
             </div>
 
             <button
               type="submit"
               disabled={loading}
-              className="btn btn-primary w-full py-3 text-lg"
+              className="btn btn-primary w-full py-3 text-lg flex items-center justify-center space-x-2"
             >
-              {loading ? 'Procesando pedido...' : 'Confirmar pedido'}
+              <span>{loading ? 'Creando pedido...' : 'Continuar al pago'}</span>
+              <ArrowRight size={20} />
             </button>
           </form>
         </div>

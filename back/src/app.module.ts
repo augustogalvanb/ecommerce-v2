@@ -6,6 +6,8 @@ import { CategoriesModule } from './categories/categories.module';
 import { ProductsModule } from './products/products.module';
 import { OrdersModule } from './orders/orders.module';
 import { CloudinaryModule } from './cloudinary/cloudinary.module';
+import { MercadopagoModule } from './mercado pago/mercadopago.module';
+import { EmailModule } from './email/email.module';
 
 @Module({
   imports: [
@@ -18,6 +20,8 @@ import { CloudinaryModule } from './cloudinary/cloudinary.module';
     CategoriesModule,
     ProductsModule,
     OrdersModule,
+    MercadopagoModule,
+    EmailModule
   ],
 })
 export class AppModule {}

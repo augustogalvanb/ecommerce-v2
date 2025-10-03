@@ -74,3 +74,34 @@ export interface CreateOrderDto {
     quantity: number;
   }[];
 }
+
+export enum PaymentStatus {
+  PENDING = 'PENDING',
+  APPROVED = 'APPROVED',
+  REJECTED = 'REJECTED',
+  IN_PROCESS = 'IN_PROCESS',
+  CANCELLED = 'CANCELLED',
+  REFUNDED = 'REFUNDED',
+}
+
+export interface PaymentData {
+  orderId: string;
+  token: string;
+  paymentMethodId: string;
+  installments: number;
+  payer: {
+    email: string;
+    identification: {
+      type: string;
+      number: string;
+    };
+  };
+}
+
+export interface PaymentResponse {
+  success: boolean;
+  status: string;
+  statusDetail: string;
+  paymentId: string;
+  order: Order;
+}
