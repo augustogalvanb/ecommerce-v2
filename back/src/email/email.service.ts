@@ -149,117 +149,156 @@ export class EmailService {
   }
 
   private getEmailTemplate(order: any): string {
-    const itemsHtml = order.orderItems
-      .map(
-        (item: any) => `
+  const itemsHtml = order.orderItems
+    .map(
+      (item: any) => `
+      <tr>
+        <td style="padding: 10px; border-bottom: 1px solid #eee;">${item.productName}</td>
+        <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: center;">${item.quantity}</td>
+        <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: right;">$${Number(item.productPrice).toFixed(2)}</td>
+        <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: right; font-weight: bold;">$${Number(item.subtotal).toFixed(2)}</td>
+      </tr>
+    `
+    )
+    .join('');
+
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <!--[if mso]>
+      <style type="text/css">
+        table {border-collapse: collapse;}
+      </style>
+      <![endif]-->
+    </head>
+    <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f5f5f5;">
+      <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f5f5f5; padding: 20px 0;">
         <tr>
-          <td style="padding: 10px; border-bottom: 1px solid #eee;">${item.productName}</td>
-          <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: center;">${item.quantity}</td>
-          <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: right;">$${Number(item.productPrice).toFixed(2)}</td>
-          <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: right; font-weight: bold;">$${Number(item.subtotal).toFixed(2)}</td>
-        </tr>
-      `
-      )
-      .join('');
+          <td align="center">
+            <table width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 10px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+              
+              <!-- Header con fondo azul -->
+              <tr>
+                <td style="background-color: #0284c7; padding: 40px 30px; text-align: center;">
+                  <h1 style="margin: 0; color: #ffffff; font-size: 28px; font-weight: bold;">¡Gracias por tu compra!</h1>
+                  <p style="margin: 10px 0 0 0; color: #ffffff; font-size: 16px;">Tu pedido ha sido confirmado</p>
+                </td>
+              </tr>
+              
+              <!-- Contenido -->
+              <tr>
+                <td style="padding: 30px;">
+                  <h2 style="margin: 0 0 10px 0; color: #333333; font-size: 20px;">Hola ${order.customerName},</h2>
+                  <p style="margin: 0 0 20px 0; color: #666666; line-height: 1.6;">
+                    Tu pedido ha sido recibido y está siendo procesado. Adjuntamos la factura en formato PDF.
+                  </p>
+                  
+                  <!-- Información del pedido -->
+                  <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f8fafc; border-radius: 8px; margin: 20px 0;">
+                    <tr>
+                      <td style="padding: 20px;">
+                        <h3 style="margin: 0 0 15px 0; color: #333333; font-size: 18px;">Información del Pedido</h3>
+                        
+                        <table width="100%" cellpadding="5" cellspacing="0">
+                          <tr>
+                            <td style="color: #666666; font-weight: bold;">Número de Pedido:</td>
+                            <td style="text-align: right; color: #333333; font-family: monospace;">${order.orderNumber}</td>
+                          </tr>
+                          <tr>
+                            <td style="color: #666666; font-weight: bold;">Fecha:</td>
+                            <td style="text-align: right; color: #333333;">${new Date(order.createdAt).toLocaleDateString('es-AR', { 
+                              day: 'numeric', 
+                              month: 'long', 
+                              year: 'numeric' 
+                            })}</td>
+                          </tr>
+                          <tr>
+                            <td style="color: #666666; font-weight: bold;">Estado:</td>
+                            <td style="text-align: right; color: #0284c7; font-weight: bold;">${this.getStatusLabel(order.status)}</td>
+                          </tr>
+                          <tr>
+                            <td style="color: #666666; font-weight: bold;">Estado de Pago:</td>
+                            <td style="text-align: right; color: ${order.paymentStatus === 'APPROVED' ? '#10b981' : '#f59e0b'}; font-weight: bold;">
+                              ${this.getPaymentStatusLabel(order.paymentStatus)}
+                            </td>
+                          </tr>
+                        </table>
+                      </td>
+                    </tr>
+                  </table>
 
-    return `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="utf-8">
-        <style>
-          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-          .header { background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
-          .content { background: #fff; padding: 30px; border: 1px solid #e5e5e5; }
-          .order-info { background: #f8fafc; padding: 20px; border-radius: 8px; margin: 20px 0; }
-          .info-row { display: flex; justify-content: space-between; margin: 10px 0; }
-          table { width: 100%; border-collapse: collapse; margin: 20px 0; }
-          .total { background: #f0f9ff; padding: 15px; border-radius: 8px; text-align: right; margin-top: 20px; }
-          .button { display: inline-block; background: #0284c7; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; margin: 20px 0; }
-          .footer { text-align: center; color: #666; font-size: 12px; padding: 20px; }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <div class="header">
-            <h1 style="margin: 0;">¡Gracias por tu compra!</h1>
-            <p style="margin: 10px 0 0 0;">Tu pedido ha sido confirmado</p>
-          </div>
-          
-          <div class="content">
-            <h2>Hola ${order.customerName},</h2>
-            <p>Tu pedido ha sido recibido y está siendo procesado. Adjuntamos la factura en formato PDF.</p>
-            
-            <div class="order-info">
-              <h3 style="margin-top: 0;">Información del Pedido</h3>
-              <div class="info-row">
-                <strong>Número de Pedido:</strong>
-                <span>${order.orderNumber}</span>
-              </div>
-              <div class="info-row">
-                <strong>Fecha:</strong>
-                <span>${new Date(order.createdAt).toLocaleDateString('es-AR', { 
-                  day: 'numeric', 
-                  month: 'long', 
-                  year: 'numeric' 
-                })}</span>
-              </div>
-              <div class="info-row">
-                <strong>Estado:</strong>
-                <span style="color: #0284c7; font-weight: bold;">${this.getStatusLabel(order.status)}</span>
-              </div>
-              <div class="info-row">
-                <strong>Estado de Pago:</strong>
-                <span style="color: ${order.paymentStatus === 'APPROVED' ? '#10b981' : '#f59e0b'}; font-weight: bold;">
-                  ${this.getPaymentStatusLabel(order.paymentStatus)}
-                </span>
-              </div>
-            </div>
+                  <h3 style="margin: 30px 0 15px 0; color: #333333; font-size: 18px;">Productos</h3>
+                  <table width="100%" cellpadding="0" cellspacing="0" style="border-collapse: collapse;">
+                    <thead>
+                      <tr style="background-color: #f8fafc;">
+                        <th style="padding: 10px; text-align: left; color: #666666; font-size: 14px;">Producto</th>
+                        <th style="padding: 10px; text-align: center; color: #666666; font-size: 14px;">Cantidad</th>
+                        <th style="padding: 10px; text-align: right; color: #666666; font-size: 14px;">Precio</th>
+                        <th style="padding: 10px; text-align: right; color: #666666; font-size: 14px;">Subtotal</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      ${itemsHtml}
+                    </tbody>
+                  </table>
 
-            <h3>Productos</h3>
-            <table>
-              <thead>
-                <tr style="background: #f8fafc;">
-                  <th style="padding: 10px; text-align: left;">Producto</th>
-                  <th style="padding: 10px; text-align: center;">Cantidad</th>
-                  <th style="padding: 10px; text-align: right;">Precio</th>
-                  <th style="padding: 10px; text-align: right;">Subtotal</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${itemsHtml}
-              </tbody>
+                  <!-- Total -->
+                  <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f0f9ff; border-radius: 8px; margin-top: 20px;">
+                    <tr>
+                      <td style="padding: 15px; text-align: right;">
+                        <h2 style="margin: 0; color: #333333; font-size: 24px;">Total: $${Number(order.totalAmount).toFixed(2)}</h2>
+                      </td>
+                    </tr>
+                  </table>
+
+                  <!-- Botón -->
+                  <table width="100%" cellpadding="0" cellspacing="0" style="margin: 30px 0;">
+                    <tr>
+                      <td align="center">
+                        <table cellpadding="0" cellspacing="0">
+                          <tr>
+                            <td style="background-color: #0284c7; border-radius: 6px;">
+                              <a href="${this.configService.get('FRONTEND_URL')}/track-order" 
+                                 style="display: inline-block; padding: 12px 30px; color: #ffffff; text-decoration: none; font-weight: bold;">
+                                Rastrear mi pedido
+                              </a>
+                            </td>
+                          </tr>
+                        </table>
+                      </td>
+                    </tr>
+                  </table>
+
+                  <p style="margin: 30px 0 0 0; padding: 15px; background-color: #fff7ed; border-left: 4px solid #f59e0b; color: #92400e; font-size: 14px; line-height: 1.6;">
+                    <strong>Nota:</strong> Guarda tu número de pedido para futuras consultas.
+                  </p>
+                </td>
+              </tr>
+
+              <!-- Footer -->
+              <tr>
+                <td style="background-color: #f8fafc; padding: 30px; text-align: center; border-top: 1px solid #e5e7eb;">
+                  <p style="margin: 0 0 5px 0; color: #333333; font-weight: bold;">TechStore</p>
+                  <p style="margin: 0 0 5px 0; color: #666666; font-size: 14px;">Tu tienda de tecnología de confianza</p>
+                  <p style="margin: 0 0 5px 0; color: #666666; font-size: 14px;">Av. Mate de Luna 1000, San Miguel de Tucumán, Argentina</p>
+                  <p style="margin: 0 0 15px 0; color: #666666; font-size: 14px;">info@techstore.com | +54 381 123-4567</p>
+                  <p style="margin: 0; color: #999999; font-size: 12px;">
+                    Si tienes alguna pregunta, no dudes en contactarnos.
+                  </p>
+                </td>
+              </tr>
+              
             </table>
-
-            <div class="total">
-              <h2 style="margin: 0;">Total: $${Number(order.totalAmount).toFixed(2)}</h2>
-            </div>
-
-            <div style="text-align: center;">
-              <a href="${this.configService.get('FRONTEND_URL')}/track-order" class="button">
-                Rastrear mi pedido
-              </a>
-            </div>
-
-            <p style="color: #666; font-size: 14px; margin-top: 30px;">
-              <strong>Nota:</strong> Guarda tu número de pedido para futuras consultas.
-            </p>
-          </div>
-
-          <div class="footer">
-            <p>TechStore - Tu tienda de tecnología de confianza</p>
-            <p>Av. Mate de Luna 1000, San Miguel de Tucumán, Argentina</p>
-            <p>info@techstore.com | +54 381 123-4567</p>
-            <p style="margin-top: 20px; font-size: 11px;">
-              Si tienes alguna pregunta, no dudes en contactarnos.
-            </p>
-          </div>
-        </div>
-      </body>
-      </html>
-    `;
-  }
+          </td>
+        </tr>
+      </table>
+    </body>
+    </html>
+  `;
+}
 
   private getStatusLabel(status: string): string {
     const labels = {
