@@ -1,6 +1,54 @@
-import { Mail, Phone, MapPin, Clock } from 'lucide-react';
+import { useState } from 'react';
+import { Mail, Phone, MapPin, Clock, CheckCircle, AlertCircle } from 'lucide-react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { contactService } from '../services/contactService';
+
+const contactSchema = z.object({
+  name: z.string().min(1, 'El nombre es requerido'),
+  email: z.string().email('Email inválido'),
+  subject: z.string().min(1, 'El asunto es requerido'),
+  message: z.string().min(10, 'El mensaje debe tener al menos 10 caracteres'),
+});
+
+type ContactForm = z.infer<typeof contactSchema>;
 
 export const Contact = () => {
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const [error, setError] = useState('');
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+    reset,
+  } = useForm<ContactForm>({
+    resolver: zodResolver(contactSchema),
+  });
+
+  const onSubmit = async (data: ContactForm) => {
+    setLoading(true);
+    setError('');
+    setSuccess(false);
+
+    try {
+      await contactService.sendMessage(data);
+      setSuccess(true);
+      reset();
+      
+      // Limpiar mensaje de éxito después de 5 segundos
+      setTimeout(() => {
+        setSuccess(false);
+      }, 5000);
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Error al enviar el mensaje. Por favor intenta nuevamente.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
       <div className="text-center mb-12">
@@ -73,17 +121,41 @@ export const Contact = () => {
           <h2 className="text-2xl font-bold text-gray-900 mb-6">
             Envíanos un mensaje
           </h2>
-          <form className="space-y-6">
+
+          {success && (
+            <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg flex items-start space-x-3">
+              <CheckCircle className="text-green-600 flex-shrink-0 mt-0.5" size={20} />
+              <div>
+                <p className="text-green-800 font-medium">¡Mensaje enviado correctamente!</p>
+                <p className="text-green-700 text-sm mt-1">
+                  Te responderemos a la brevedad en tu email.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {error && (
+            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start space-x-3">
+              <AlertCircle className="text-red-600 flex-shrink-0 mt-0.5" size={20} />
+              <p className="text-red-800 text-sm">{error}</p>
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Nombre *
               </label>
               <input
+                {...register('name')}
                 type="text"
                 className="input"
                 placeholder="Tu nombre"
-                required
+                disabled={loading}
               />
+              {errors.name && (
+                <p className="text-red-600 text-sm mt-1">{errors.name.message}</p>
+              )}
             </div>
 
             <div>
@@ -91,11 +163,15 @@ export const Contact = () => {
                 Email *
               </label>
               <input
+                {...register('email')}
                 type="email"
                 className="input"
                 placeholder="tu@email.com"
-                required
+                disabled={loading}
               />
+              {errors.email && (
+                <p className="text-red-600 text-sm mt-1">{errors.email.message}</p>
+              )}
             </div>
 
             <div>
@@ -103,11 +179,15 @@ export const Contact = () => {
                 Asunto *
               </label>
               <input
+                {...register('subject')}
                 type="text"
                 className="input"
                 placeholder="¿En qué podemos ayudarte?"
-                required
+                disabled={loading}
               />
+              {errors.subject && (
+                <p className="text-red-600 text-sm mt-1">{errors.subject.message}</p>
+              )}
             </div>
 
             <div>
@@ -115,23 +195,30 @@ export const Contact = () => {
                 Mensaje *
               </label>
               <textarea
+                {...register('message')}
                 className="input min-h-[150px] resize-none"
                 placeholder="Escribe tu mensaje aquí..."
-                required
+                disabled={loading}
               ></textarea>
+              {errors.message && (
+                <p className="text-red-600 text-sm mt-1">{errors.message.message}</p>
+              )}
             </div>
 
-            <button type="submit" className="btn btn-primary w-full py-3">
-              Enviar mensaje
+            <button 
+              type="submit" 
+              disabled={loading}
+              className="btn btn-primary w-full py-3"
+            >
+              {loading ? 'Enviando...' : 'Enviar mensaje'}
             </button>
           </form>
         </div>
       </div>
 
-      {/* Map */}
       <div className="mt-12 rounded-xl overflow-hidden shadow-lg">
         <iframe
-          src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d56723.64624287394!2d-65.24978784863281!3d-26.808284999999998!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x94225d3ad7f30f1d%3A0xf8606cd659b8e3e4!2zU2FuIE1pZ3VlbCBkZSBUdWN1bcOhbiwgVHVjdW3DoW4!5e0!3m2!1ses!2sar!4v1234567890123!5m2!1ses!2sar"
+          src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3560.3681561062235!2d-65.2212824252806!3d-26.828240289678277!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x94225c6bbf9e8ab9%3A0x886f1c58ad739b2e!2sAv.%20Mate%20de%20Luna%201000%2C%20T4000%20San%20Miguel%20de%20Tucum%C3%A1n%2C%20Tucum%C3%A1n!5e0!3m2!1ses-419!2sar!4v1759617912096!5m2!1ses-419!2sar"
           width="100%"
           height="400"
           style={{ border: 0 }}

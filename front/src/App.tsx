@@ -16,10 +16,23 @@ import { AdminCategories } from './pages/admin/AdminCategories';
 import { AdminProducts } from './pages/admin/AdminProducts';
 import { AdminProductForm } from './pages/admin/AdminProductForm';
 import { AdminOrders } from './pages/admin/AdminOrders';
+import { useLocation } from 'react-router-dom';
+import { useEffect } from 'react';
+
+function ScrollToTop() {
+  const { pathname } = useLocation();
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [pathname]);
+
+  return null;
+}
 
 function App() {
   return (
     <BrowserRouter>
+      <ScrollToTop />
       <Routes>
         {/* Public Routes */}
         <Route element={<MainLayout />}>
@@ -50,6 +63,7 @@ function App() {
         {/* 404 */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      <ScrollToTop />
     </BrowserRouter>
   );
 }

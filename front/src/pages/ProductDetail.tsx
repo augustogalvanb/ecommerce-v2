@@ -76,13 +76,13 @@ export const ProductDetail = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
         {/* Images */}
         <div>
-          <div className="aspect-square rounded-xl overflow-hidden bg-gray-100 mb-4">
-            <img
-              src={product.images[selectedImage] || 'https://via.placeholder.com/600'}
-              alt={product.name}
-              className="w-full h-full object-cover"
-            />
-          </div>
+          <div className="h-96 rounded-xl overflow-hidden bg-gray-100 mb-4">
+          <img
+            src={product.images[selectedImage] || 'https://via.placeholder.com/600'}
+            alt={product.name}
+            className="w-full h-full object-contain"
+          />
+        </div>
           {product.images.length > 1 && (
             <div className="grid grid-cols-4 gap-2">
               {product.images.map((image, index) => (
