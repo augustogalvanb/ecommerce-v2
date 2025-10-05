@@ -3,7 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma/prisma.service';
 import { EmailService } from '../email/email.service';
 import { MercadoPagoConfig, Payment } from 'mercadopago';
-import { PaymentStatus } from '@prisma/client'; // AGREGAR ESTE IMPORT
+import { PaymentStatus } from '@prisma/client';
 
 @Injectable()
 export class MercadopagoService {
@@ -99,7 +99,6 @@ export class MercadopagoService {
           await this.emailService.sendOrderConfirmation(updatedOrder);
         } catch (emailError) {
           console.error('Error enviando email, pero el pago fue exitoso:', emailError);
-          // No lanzar error, el pago ya se procesó correctamente
         }
       }
 

@@ -14,7 +14,7 @@ export const Footer = () => {
             </p>
           </div>
 
-          {/* Quick Links */}
+          {/* Enlaces Rápidos */}
           <div>
             <h3 className="text-white font-bold text-lg mb-4">Enlaces Rápidos</h3>
             <ul className="space-y-2">

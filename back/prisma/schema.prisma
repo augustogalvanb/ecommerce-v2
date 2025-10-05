@@ -1,5 +1,3 @@
-// prisma/schema.prisma
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -58,7 +56,7 @@ model Order {
   totalAmount   Decimal     @db.Decimal(10, 2)
   status        OrderStatus @default(PENDING)
   
-  // Nuevos campos para Mercado Pago
+  // campos para Mercado Pago
   paymentStatus PaymentStatus @default(PENDING)
   paymentId     String?      // ID de pago de Mercado Pago
   paymentMethod String?      // Método de pago (credit_card, debit_card)
