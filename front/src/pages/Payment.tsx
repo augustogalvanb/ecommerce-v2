@@ -29,7 +29,7 @@ export const Payment = () => {
 
   // Datos del formulario
   const [cardNumber, setCardNumber] = useState('');
-  const [cardHolder, setCardHolder] = useState(customerName || '');
+  const [cardHolder, setCardHolder] = useState('APRO');
   const [expirationDate, setExpirationDate] = useState('');
   const [securityCode, setSecurityCode] = useState('');
   const [identificationType, setIdentificationType] = useState('DNI');

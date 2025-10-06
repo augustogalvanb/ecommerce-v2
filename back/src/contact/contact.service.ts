@@ -20,7 +20,7 @@ export class ContactService {
     });
 
     // Email del admin donde llegarán los mensajes
-    this.adminEmail = this.configService.get<string>('ADMIN_EMAIL')!;
+    this.adminEmail = this.configService.get<string>('EMAIL_USER')!;
   }
 
   async sendContactEmail(contactDto: ContactDto) {

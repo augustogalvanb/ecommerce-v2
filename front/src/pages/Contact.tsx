@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Mail, Phone, MapPin, Clock, CheckCircle, AlertCircle } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -18,6 +18,10 @@ export const Contact = () => {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
+  
+  // Referencias para hacer scroll
+  const formRef = useRef<HTMLDivElement>(null);
+  const alertRef = useRef<HTMLDivElement>(null);
 
   const {
     register,
@@ -38,12 +42,28 @@ export const Contact = () => {
       setSuccess(true);
       reset();
       
+      // Scroll al mensaje de éxito después de un pequeño delay
+      setTimeout(() => {
+        alertRef.current?.scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'center' 
+        });
+      }, 100);
+      
       // Limpiar mensaje de éxito después de 5 segundos
       setTimeout(() => {
         setSuccess(false);
       }, 5000);
     } catch (err: any) {
       setError(err.response?.data?.message || 'Error al enviar el mensaje. Por favor intenta nuevamente.');
+      
+      // Scroll al mensaje de error
+      setTimeout(() => {
+        alertRef.current?.scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'center' 
+        });
+      }, 100);
     } finally {
       setLoading(false);
     }
@@ -117,102 +137,107 @@ export const Contact = () => {
         </div>
 
         {/* Contact Form */}
-        <div className="card">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6">
-            Envíanos un mensaje
-          </h2>
+        <div ref={formRef}>
+          <div className="card">
+            <h2 className="text-2xl font-bold text-gray-900 mb-6">
+              Envíanos un mensaje
+            </h2>
 
-          {success && (
-            <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg flex items-start space-x-3">
-              <CheckCircle className="text-green-600 flex-shrink-0 mt-0.5" size={20} />
+            {/* Mensajes de éxito/error con ref para scroll */}
+            <div ref={alertRef}>
+              {success && (
+                <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg flex items-start space-x-3 animate-in fade-in slide-in-from-top-2 duration-300">
+                  <CheckCircle className="text-green-600 flex-shrink-0 mt-0.5" size={20} />
+                  <div>
+                    <p className="text-green-800 font-medium">¡Mensaje enviado correctamente!</p>
+                    <p className="text-green-700 text-sm mt-1">
+                      Te responderemos a la brevedad en tu email.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {error && (
+                <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start space-x-3 animate-in fade-in slide-in-from-top-2 duration-300">
+                  <AlertCircle className="text-red-600 flex-shrink-0 mt-0.5" size={20} />
+                  <p className="text-red-800 text-sm">{error}</p>
+                </div>
+              )}
+            </div>
+
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
               <div>
-                <p className="text-green-800 font-medium">¡Mensaje enviado correctamente!</p>
-                <p className="text-green-700 text-sm mt-1">
-                  Te responderemos a la brevedad en tu email.
-                </p>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Nombre *
+                </label>
+                <input
+                  {...register('name')}
+                  type="text"
+                  className="input"
+                  placeholder="Tu nombre"
+                  disabled={loading}
+                />
+                {errors.name && (
+                  <p className="text-red-600 text-sm mt-1">{errors.name.message}</p>
+                )}
               </div>
-            </div>
-          )}
 
-          {error && (
-            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start space-x-3">
-              <AlertCircle className="text-red-600 flex-shrink-0 mt-0.5" size={20} />
-              <p className="text-red-800 text-sm">{error}</p>
-            </div>
-          )}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Email *
+                </label>
+                <input
+                  {...register('email')}
+                  type="email"
+                  className="input"
+                  placeholder="tu@email.com"
+                  disabled={loading}
+                />
+                {errors.email && (
+                  <p className="text-red-600 text-sm mt-1">{errors.email.message}</p>
+                )}
+              </div>
 
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Nombre *
-              </label>
-              <input
-                {...register('name')}
-                type="text"
-                className="input"
-                placeholder="Tu nombre"
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Asunto *
+                </label>
+                <input
+                  {...register('subject')}
+                  type="text"
+                  className="input"
+                  placeholder="¿En qué podemos ayudarte?"
+                  disabled={loading}
+                />
+                {errors.subject && (
+                  <p className="text-red-600 text-sm mt-1">{errors.subject.message}</p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Mensaje *
+                </label>
+                <textarea
+                  {...register('message')}
+                  className="input min-h-[150px] resize-none"
+                  placeholder="Escribe tu mensaje aquí..."
+                  disabled={loading}
+                ></textarea>
+                {errors.message && (
+                  <p className="text-red-600 text-sm mt-1">{errors.message.message}</p>
+                )}
+              </div>
+
+              <button 
+                type="submit" 
                 disabled={loading}
-              />
-              {errors.name && (
-                <p className="text-red-600 text-sm mt-1">{errors.name.message}</p>
-              )}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Email *
-              </label>
-              <input
-                {...register('email')}
-                type="email"
-                className="input"
-                placeholder="tu@email.com"
-                disabled={loading}
-              />
-              {errors.email && (
-                <p className="text-red-600 text-sm mt-1">{errors.email.message}</p>
-              )}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Asunto *
-              </label>
-              <input
-                {...register('subject')}
-                type="text"
-                className="input"
-                placeholder="¿En qué podemos ayudarte?"
-                disabled={loading}
-              />
-              {errors.subject && (
-                <p className="text-red-600 text-sm mt-1">{errors.subject.message}</p>
-              )}
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Mensaje *
-              </label>
-              <textarea
-                {...register('message')}
-                className="input min-h-[150px] resize-none"
-                placeholder="Escribe tu mensaje aquí..."
-                disabled={loading}
-              ></textarea>
-              {errors.message && (
-                <p className="text-red-600 text-sm mt-1">{errors.message.message}</p>
-              )}
-            </div>
-
-            <button 
-              type="submit" 
-              disabled={loading}
-              className="btn btn-primary w-full py-3"
-            >
-              {loading ? 'Enviando...' : 'Enviar mensaje'}
-            </button>
-          </form>
+                className="btn btn-primary w-full py-3"
+              >
+                {loading ? 'Enviando...' : 'Enviar mensaje'}
+              </button>
+            </form>
+          </div>
         </div>
       </div>
 
