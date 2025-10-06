@@ -51,7 +51,16 @@ export const Checkout = () => {
 
       const order = await orderService.create(orderData);
       setOrderId(order.id);
-      clearCart();
+
+      // Guardar orderId en localStorage para poder volver a la página de pago
+      localStorage.setItem('pending_order', JSON.stringify({
+        orderId: order.id,
+        orderNumber: order.orderNumber,
+        customerEmail: data.customerEmail,
+        customerName: data.customerName,
+        totalAmount: order.totalAmount,
+        createdAt: new Date().toISOString(),
+      }));
       
       // Navegar a la página de pago
       navigate(`/payment/${order.id}`, { 

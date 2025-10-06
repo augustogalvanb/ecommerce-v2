@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { paymentService } from '../services/paymentService';
-import { CreditCard, Lock, AlertCircle, CheckCircle } from 'lucide-react';
+import { useCartStore } from '../stores/cartStore';
+import { CreditCard, Lock, AlertCircle, CheckCircle, Clock } from 'lucide-react';
 
 declare global {
   interface Window {
@@ -13,12 +14,14 @@ export const Payment = () => {
   const { orderId } = useParams<{ orderId: string }>();
   const location = useLocation();
   const navigate = useNavigate();
+  const clearCart = useCartStore((state) => state.clearCart);
   
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [timeLeft, setTimeLeft] = useState(600); // 10 minutos en segundos
 
-  // Obtener datos desde location.state
+  // Obtener datos desde location.state o localStorage
   const orderNumber = location.state?.orderNumber;
   const customerEmail = location.state?.customerEmail;
   const customerName = location.state?.customerName;
@@ -34,31 +37,57 @@ export const Payment = () => {
 
   const publicKey = import.meta.env.VITE_MERCADOPAGO_PUBLIC_KEY;
 
+  // Timer countdown
   useEffect(() => {
-  // Verificar que tenemos la public key
-  if (!publicKey) {
-    setError('Error de configuración: No se encontró la Public Key de Mercado Pago');
-    return;
-  }
-  
-  console.log('Public Key configurada:', publicKey.substring(0, 10) + '...');
-  
-  // Redirigir si no hay datos de la orden
-  if (!orderId || !orderNumber) {
-    navigate('/cart');
-    return;
-  }
-  
-  loadMercadoPagoScript();
-}, [orderId, orderNumber, navigate, publicKey]);
+    // Verificar si hay una orden pendiente guardada
+    const pendingOrder = localStorage.getItem('pending_order');
+    if (pendingOrder) {
+      const orderData = JSON.parse(pendingOrder);
+      const createdAt = new Date(orderData.createdAt);
+      const now = new Date();
+      const elapsedSeconds = Math.floor((now.getTime() - createdAt.getTime()) / 1000);
+      const remaining = 600 - elapsedSeconds;
+
+      if (remaining <= 0) {
+        setError('El tiempo para completar el pago ha expirado. Por favor, crea un nuevo pedido.');
+        setTimeLeft(0);
+        return;
+      }
+
+      setTimeLeft(remaining);
+    }
+
+    const timer = setInterval(() => {
+      setTimeLeft((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          setError('El tiempo para completar el pago ha expirado. Por favor, crea un nuevo pedido.');
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
+    // Verificar que tenemos la public key
+    if (!publicKey) {
+      setError('Error de configuración: No se encontró la Public Key de Mercado Pago');
+      return;
+    }
+    
+    console.log('Public Key configurada:', publicKey.substring(0, 10) + '...');
+    
     // Redirigir si no hay datos de la orden
     if (!orderId || !orderNumber) {
       navigate('/cart');
+      return;
     }
+    
     loadMercadoPagoScript();
-  }, [orderId, orderNumber, navigate]);
+  }, [orderId, orderNumber, navigate, publicKey]);
 
   const loadMercadoPagoScript = () => {
     const script = document.createElement('script');
@@ -71,134 +100,139 @@ export const Payment = () => {
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
-  
-  if (!orderId) return;
+    e.preventDefault();
+    
+    if (!orderId) return;
 
-  // Validaciones antes de procesar
-  if (cardNumber.replace(/\s/g, '').length < 15) {
-    setError('El número de tarjeta es inválido');
-    return;
-  }
-
-  if (expirationDate.length !== 5 || !expirationDate.includes('/')) {
-    setError('La fecha de vencimiento es inválida. Formato: MM/AA');
-    return;
-  }
-
-  if (securityCode.length < 3) {
-    setError('El CVV es inválido');
-    return;
-  }
-
-  if (identificationNumber.length < 7) {
-    setError('El número de documento es inválido');
-    return;
-  }
-
-  setProcessing(true);
-  setError(null);
-
-  try {
-    // Verificar que el SDK está cargado
-    if (!window.MercadoPago) {
-      throw new Error('SDK de Mercado Pago no cargado. Recarga la página e intenta nuevamente.');
+    // Verificar si el tiempo expiró
+    if (timeLeft <= 0) {
+      setError('El tiempo para completar el pago ha expirado. Por favor, crea un nuevo pedido.');
+      return;
     }
 
-    // Inicializar Mercado Pago
-    const mp = new window.MercadoPago(publicKey);
-
-    console.log('Creando token de tarjeta...');
-
-    // Parsear fecha de vencimiento
-    const [month, year] = expirationDate.split('/');
-
-    // Limpiar número de tarjeta
-    const cleanCardNumber = cardNumber.replace(/\s/g, '');
-
-    // Obtener el método de pago primero (identificar el tipo de tarjeta)
-    const paymentMethods = await mp.getPaymentMethods({
-      bin: cleanCardNumber.substring(0, 6) // Primeros 6 dígitos
-    });
-
-    console.log('Métodos de pago encontrados:', paymentMethods);
-
-    if (!paymentMethods.results || paymentMethods.results.length === 0) {
-      throw new Error('No se pudo identificar el tipo de tarjeta. Verifica el número ingresado.');
+    // Validaciones antes de procesar
+    if (cardNumber.replace(/\s/g, '').length < 15) {
+      setError('El número de tarjeta es inválido');
+      return;
     }
 
-    const paymentMethodId = paymentMethods.results[0].id;
-    console.log('Payment Method ID:', paymentMethodId);
-
-    // Crear token de la tarjeta
-    const cardTokenResponse = await mp.createCardToken({
-      cardNumber: cleanCardNumber,
-      cardholderName: cardHolder,
-      cardExpirationMonth: month,
-      cardExpirationYear: `20${year}`,
-      securityCode: securityCode,
-      identificationType: identificationType,
-      identificationNumber: identificationNumber,
-    });
-
-    console.log('Token creado:', cardTokenResponse);
-
-    // Validar que el token se creó correctamente
-    if (!cardTokenResponse || !cardTokenResponse.id) {
-      throw new Error('No se pudo crear el token de la tarjeta. Verifica los datos ingresados.');
+    if (expirationDate.length !== 5 || !expirationDate.includes('/')) {
+      setError('La fecha de vencimiento es inválida. Formato: MM/AA');
+      return;
     }
 
-    console.log('Procesando pago...');
+    if (securityCode.length < 3) {
+      setError('El CVV es inválido');
+      return;
+    }
 
-    // Procesar pago
-    const paymentData = {
-      orderId: orderId,
-      token: cardTokenResponse.id,
-      paymentMethodId: paymentMethodId, // Usar el ID que obtuvimos antes
-      installments: 1,
-      payer: {
-        email: customerEmail || 'test@test.com',
-        identification: {
-          type: identificationType,
-          number: identificationNumber,
+    if (identificationNumber.length < 7) {
+      setError('El número de documento es inválido');
+      return;
+    }
+
+    setProcessing(true);
+    setError(null);
+
+    try {
+      // Verificar que el SDK está cargado
+      if (!window.MercadoPago) {
+        throw new Error('SDK de Mercado Pago no cargado. Recarga la página e intenta nuevamente.');
+      }
+
+      const mp = new window.MercadoPago(publicKey);
+
+      console.log('Creando token de tarjeta...');
+
+      const [month, year] = expirationDate.split('/');
+      const cleanCardNumber = cardNumber.replace(/\s/g, '');
+
+      // Obtener el método de pago
+      const paymentMethods = await mp.getPaymentMethods({
+        bin: cleanCardNumber.substring(0, 6)
+      });
+
+      console.log('Métodos de pago encontrados:', paymentMethods);
+
+      if (!paymentMethods.results || paymentMethods.results.length === 0) {
+        throw new Error('No se pudo identificar el tipo de tarjeta. Verifica el número ingresado.');
+      }
+
+      const paymentMethodId = paymentMethods.results[0].id;
+      console.log('Payment Method ID:', paymentMethodId);
+
+      // Crear token de la tarjeta
+      const cardTokenResponse = await mp.createCardToken({
+        cardNumber: cleanCardNumber,
+        cardholderName: cardHolder,
+        cardExpirationMonth: month,
+        cardExpirationYear: `20${year}`,
+        securityCode: securityCode,
+        identificationType: identificationType,
+        identificationNumber: identificationNumber,
+      });
+
+      console.log('Token creado:', cardTokenResponse);
+
+      if (!cardTokenResponse || !cardTokenResponse.id) {
+        throw new Error('No se pudo crear el token de la tarjeta. Verifica los datos ingresados.');
+      }
+
+      console.log('Procesando pago...');
+
+      const paymentData = {
+        orderId: orderId,
+        token: cardTokenResponse.id,
+        paymentMethodId: paymentMethodId,
+        installments: 1,
+        payer: {
+          email: customerEmail || 'test@test.com',
+          identification: {
+            type: identificationType,
+            number: identificationNumber,
+          },
         },
-      },
-    };
+      };
 
-    console.log('Datos de pago:', paymentData);
+      console.log('Datos de pago:', paymentData);
 
-    const response = await paymentService.processPayment(paymentData);
+      const response = await paymentService.processPayment(paymentData);
 
-    console.log('Respuesta del pago:', response);
+      console.log('Respuesta del pago:', response);
 
-    if (response.success) {
-      setSuccess(true);
-      setTimeout(() => {
-        navigate(`/order-confirmation/${orderNumber}`);
-      }, 2000);
-    } else {
-      setError(
-        `Pago rechazado: ${response.statusDetail || 'Intenta con otra tarjeta'}`
-      );
+      if (response.success) {
+        // Limpiar carrito cuando el pago es exitoso
+        clearCart();
+        // Limpiar orden pendiente de localStorage
+        localStorage.removeItem('pending_order');
+        
+        setSuccess(true);
+        setTimeout(() => {
+          navigate(`/order-confirmation/${orderNumber}`);
+        }, 2000);
+      } else {
+        setError(
+          `Pago rechazado: ${response.statusDetail || 'Intenta con otra tarjeta'}`
+        );
+      }
+    } catch (err: any) {
+      console.error('Error completo:', err);
+      
+      let errorMessage = 'Error al procesar el pago. ';
+      
+      if (err.response?.data?.message) {
+        errorMessage += err.response.data.message;
+      } else if (err.message) {
+        errorMessage += err.message;
+      } else {
+        errorMessage += 'Por favor verifica los datos de tu tarjeta e intenta nuevamente.';
+      }
+      
+      setError(errorMessage);
+    } finally {
+      setProcessing(false);
     }
-  } catch (err: any) {
-    console.error('Error completo:', err);
-    
-    let errorMessage = 'Error al procesar el pago. ';
-    
-    if (err.response?.data?.message) {
-      errorMessage += err.response.data.message;
-    } else if (err.message) {
-      errorMessage += err.message;
-    } else {
-      errorMessage += 'Por favor verifica los datos de tu tarjeta e intenta nuevamente.';
-    }
-    
-    setError(errorMessage);
-  } finally {
-    setProcessing(false);
-  }
-};
+  };
 
   const formatCardNumber = (value: string) => {
     const cleaned = value.replace(/\s/g, '');
@@ -212,6 +246,12 @@ export const Payment = () => {
       return cleaned.substring(0, 2) + '/' + cleaned.substring(2, 4);
     }
     return cleaned;
+  };
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
   // Redirigir si no hay datos
@@ -242,6 +282,21 @@ export const Payment = () => {
       <div className="mb-8">
         <h1 className="text-4xl font-bold text-gray-900 mb-2">Datos de Pago</h1>
         <p className="text-gray-600">Ingresa los datos de tu tarjeta de forma segura</p>
+      </div>
+
+      {/* Timer */}
+      <div className={`mb-6 p-4 rounded-lg flex items-center justify-between ${
+        timeLeft < 120 ? 'bg-red-50 border border-red-200' : 'bg-blue-50 border border-blue-200'
+      }`}>
+        <div className="flex items-center space-x-2">
+          <Clock className={timeLeft < 120 ? 'text-red-600' : 'text-blue-600'} size={20} />
+          <span className={`font-medium ${timeLeft < 120 ? 'text-red-900' : 'text-blue-900'}`}>
+            Tiempo restante para completar el pago:
+          </span>
+        </div>
+        <span className={`text-2xl font-bold ${timeLeft < 120 ? 'text-red-600' : 'text-blue-600'}`}>
+          {formatTime(timeLeft)}
+        </span>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -286,7 +341,7 @@ export const Payment = () => {
                   placeholder="1234 5678 9012 3456"
                   maxLength={19}
                   required
-                  disabled={processing}
+                  disabled={processing || timeLeft <= 0}
                 />
                 <CreditCard className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
               </div>
@@ -303,7 +358,7 @@ export const Payment = () => {
                 className="input"
                 placeholder="JUAN PEREZ"
                 required
-                disabled={processing}
+                disabled={processing || timeLeft <= 0}
               />
             </div>
 
@@ -320,7 +375,7 @@ export const Payment = () => {
                   placeholder="MM/AA"
                   maxLength={5}
                   required
-                  disabled={processing}
+                  disabled={processing || timeLeft <= 0}
                 />
               </div>
 
@@ -336,7 +391,7 @@ export const Payment = () => {
                   placeholder="123"
                   maxLength={4}
                   required
-                  disabled={processing}
+                  disabled={processing || timeLeft <= 0}
                 />
               </div>
             </div>
@@ -351,7 +406,7 @@ export const Payment = () => {
                   onChange={(e) => setIdentificationType(e.target.value)}
                   className="input"
                   required
-                  disabled={processing}
+                  disabled={processing || timeLeft <= 0}
                 >
                   <option value="DNI">DNI</option>
                   <option value="CI">CI</option>
@@ -372,17 +427,17 @@ export const Payment = () => {
                   className="input"
                   placeholder="12345678"
                   required
-                  disabled={processing}
+                  disabled={processing || timeLeft <= 0}
                 />
               </div>
             </div>
 
             <button
               type="submit"
-              disabled={processing}
+              disabled={processing || timeLeft <= 0}
               className="btn btn-primary w-full py-3 text-lg"
             >
-              {processing ? 'Procesando pago...' : `Pagar ${totalAmount ? `$${Number(totalAmount).toFixed(2)}` : ''}`}
+              {processing ? 'Procesando pago...' : timeLeft <= 0 ? 'Tiempo expirado' : `Pagar ${totalAmount ? `$${Number(totalAmount).toFixed(2)}` : ''}`}
             </button>
 
             <p className="text-xs text-gray-500 text-center">
