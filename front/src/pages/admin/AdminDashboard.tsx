@@ -3,16 +3,25 @@ import { Link } from 'react-router-dom';
 import { productService } from '../../services/productService';
 import { orderService } from '../../services/orderService';
 import { categoryService } from '../../services/categoryService';
-import { Package, ShoppingBag, FolderTree, DollarSign, TrendingUp } from 'lucide-react';
+import { Package, ShoppingBag, FolderTree, AlertTriangle, TrendingUp, Eye } from 'lucide-react';
+
+interface Product {
+  id: string;
+  name: string;
+  stock: number;
+  price: number;
+  images: string[];
+}
 
 export const AdminDashboard = () => {
   const [stats, setStats] = useState({
     totalProducts: 0,
     totalOrders: 0,
     totalCategories: 0,
-    pendingOrders: 0,
   });
+  const [lowStockProducts, setLowStockProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showAllLowStock, setShowAllLowStock] = useState(false);
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -27,8 +36,14 @@ export const AdminDashboard = () => {
           totalProducts: products.length,
           totalOrders: orders.length,
           totalCategories: categories.length,
-          pendingOrders: orders.filter((o) => o.status === 'PENDING').length,
         });
+
+        // Filtrar productos con bajo stock (menos de 10 unidades)
+        const lowStock = products
+          .filter((p) => p.stock < 10 && p.isActive)
+          .sort((a, b) => a.stock - b.stock);
+        
+        setLowStockProducts(lowStock);
       } catch (error) {
         console.error('Error fetching stats:', error);
       } finally {
@@ -61,14 +76,11 @@ export const AdminDashboard = () => {
       color: 'bg-purple-500',
       link: '/admin/categories',
     },
-    {
-      title: 'Pedidos Pendientes',
-      value: stats.pendingOrders,
-      icon: TrendingUp,
-      color: 'bg-yellow-500',
-      link: '/admin/orders?status=PENDING',
-    },
   ];
+
+  const displayedProducts = showAllLowStock 
+    ? lowStockProducts 
+    : lowStockProducts.slice(0, 3);
 
   if (loading) {
     return (
@@ -85,7 +97,7 @@ export const AdminDashboard = () => {
         <p className="text-gray-600 mt-2">Bienvenido al panel de administración</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         {statCards.map((stat) => {
           const Icon = stat.icon;
           return (
@@ -135,21 +147,79 @@ export const AdminDashboard = () => {
         </div>
 
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-          <h2 className="text-xl font-bold text-gray-900 mb-4">Información del Sistema</h2>
-          <div className="space-y-4">
-            <div className="p-4 bg-gray-50 rounded-lg">
-              <p className="text-sm text-gray-600 mb-1">Versión</p>
-              <p className="font-semibold text-gray-900">1.0.0</p>
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center space-x-2">
+              <AlertTriangle className="text-orange-600" size={24} />
+              <h2 className="text-xl font-bold text-gray-900">Productos con Bajo Stock</h2>
             </div>
-            <div className="p-4 bg-gray-50 rounded-lg">
-              <p className="text-sm text-gray-600 mb-1">Base de datos</p>
-              <p className="font-semibold text-gray-900">PostgreSQL</p>
-            </div>
-            <div className="p-4 bg-gray-50 rounded-lg">
-              <p className="text-sm text-gray-600 mb-1">Estado del sistema</p>
-              <p className="font-semibold text-green-600">Operativo</p>
-            </div>
+            {lowStockProducts.length > 0 && (
+              <span className="px-2 py-1 bg-orange-100 text-orange-800 text-xs font-semibold rounded-full">
+                {lowStockProducts.length}
+              </span>
+            )}
           </div>
+
+          {lowStockProducts.length === 0 ? (
+            <div className="text-center py-8">
+              <Package className="mx-auto text-gray-400 mb-2" size={48} />
+              <p className="text-gray-600">No hay productos con bajo stock</p>
+              <p className="text-sm text-gray-500 mt-1">(Menos de 10 unidades)</p>
+            </div>
+          ) : (
+            <>
+              <div className="space-y-3 mb-4">
+                {displayedProducts.map((product) => (
+                  <div
+                    key={product.id}
+                    className="flex items-center space-x-3 p-3 bg-orange-50 rounded-lg border border-orange-200"
+                  >
+                    <img
+                      src={product.images[0] || 'https://via.placeholder.com/100'}
+                      alt={product.name}
+                      className="w-12 h-12 object-cover rounded"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-gray-900 truncate">
+                        {product.name}
+                      </p>
+                      <p className="text-sm text-gray-600">
+                        ${Number(product.price).toFixed(2)}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className={`text-lg font-bold ${
+                        product.stock === 0 
+                          ? 'text-red-600' 
+                          : product.stock < 5 
+                          ? 'text-orange-600' 
+                          : 'text-yellow-600'
+                      }`}>
+                        {product.stock}
+                      </p>
+                      <p className="text-xs text-gray-500">unidades</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {lowStockProducts.length > 3 && (
+                <button
+                  onClick={() => setShowAllLowStock(!showAllLowStock)}
+                  className="w-full py-2 text-sm font-medium text-primary-600 hover:text-primary-700 border border-primary-200 hover:border-primary-300 rounded-lg transition"
+                >
+                  {showAllLowStock ? 'Ver menos' : `Ver todos (${lowStockProducts.length})`}
+                </button>
+              )}
+
+              <Link
+                to="/admin/products"
+                className="mt-3 flex items-center justify-center space-x-2 w-full py-2 text-sm font-medium text-gray-700 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 rounded-lg transition"
+              >
+                <Eye size={16} />
+                <span>Ir a Productos</span>
+              </Link>
+            </>
+          )}
         </div>
       </div>
     </div>
